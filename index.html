@@ -24,27 +24,49 @@
     <main>
       <section class="summary-grid" aria-label="Budget summary">
         <article class="summary-card">
-          <span>Budgeted</span>
+          <span>Cycle funding</span>
           <strong id="summaryBudgeted">$0.00</strong>
         </article>
         <article class="summary-card">
-          <span>Spent</span>
+          <span>Cycle spent</span>
           <strong id="summarySpent">$0.00</strong>
         </article>
         <article class="summary-card">
-          <span>Added</span>
+          <span>Cycle added</span>
           <strong id="summaryAdded">$0.00</strong>
         </article>
         <article class="summary-card accent-card">
-          <span>Remaining</span>
+          <span>Available</span>
           <strong id="summaryRemaining">$0.00</strong>
         </article>
+      </section>
+
+      <section id="cyclePanel" class="panel cycle-panel">
+        <div class="cycle-status">
+          <div>
+            <p class="eyebrow">14-day budget cycle</p>
+            <h2 id="cycleStatusTitle">Set your next budget cycle</h2>
+            <p id="cycleStatusText">Choose your next cycle date to get started.</p>
+          </div>
+          <div class="cycle-total">
+            <span>Normal cycle funding</span>
+            <strong id="cycleFundingTotal">$0.00</strong>
+          </div>
+        </div>
+        <div class="cycle-controls">
+          <label>Next budget cycle date
+            <input id="cycleDateInput" type="date" />
+          </label>
+          <button id="saveCycleDateBtn" type="button" class="secondary">Save date</button>
+          <button id="reviewCycleBtn" type="button" class="primary">Review cycle funding</button>
+        </div>
+        <p class="fine-print">Nothing is funded automatically. When the cycle date arrives, review the amounts and confirm before any money is added. Leftover balances always carry forward.</p>
       </section>
 
       <section class="section-header">
         <div>
           <h2>Your envelopes</h2>
-          <p>Tap an envelope to spend from it or add money.</p>
+          <p>Tap an envelope to record spending or add money.</p>
         </div>
         <button id="addEnvelopeBtn" class="primary">+ Add envelope</button>
       </section>
@@ -63,16 +85,40 @@
       </section>
 
       <section class="panel settings-panel">
-        <h2>Backup & month controls</h2>
+        <h2>Backup & data</h2>
         <div class="button-row">
           <button id="exportBtn" class="secondary">Export backup</button>
           <label class="secondary file-button">Restore backup<input id="importInput" type="file" accept="application/json" /></label>
-          <button id="newMonthBtn" class="secondary">Start new month</button>
         </div>
         <p class="fine-print">Your budget data is stored locally on this device. Export a backup occasionally so you can restore it after changing phones or clearing browser data.</p>
       </section>
     </main>
   </div>
+
+
+  <dialog id="cycleDialog">
+    <form method="dialog" id="cycleForm" class="dialog-card">
+      <div class="dialog-title-row">
+        <div>
+          <p class="eyebrow">Budget cycle confirmation</p>
+          <h2 id="cycleDialogTitle">New Budget Cycle Ready</h2>
+        </div>
+        <button type="button" class="icon-button" data-close="cycleDialog" aria-label="Close">×</button>
+      </div>
+      <p id="cycleDialogText" class="split-help"></p>
+      <div id="cycleFundingRows" class="cycle-funding-rows"></div>
+      <div class="split-total-row cycle-dialog-total">
+        <span>Total funding this cycle</span>
+        <strong id="cycleDialogTotal">$0.00</strong>
+      </div>
+      <p class="fine-print">These amounts apply only to this cycle. Changing one here does not change the envelope's normal funding amount.</p>
+      <div class="dialog-actions split-actions">
+        <span class="spacer"></span>
+        <button type="button" class="secondary" data-close="cycleDialog">Cancel</button>
+        <button type="submit" class="primary">Start Budget Cycle</button>
+      </div>
+    </form>
+  </dialog>
 
   <dialog id="spendDialog">
     <form method="dialog" id="spendForm" class="dialog-card">
@@ -144,15 +190,15 @@
           <input id="envelopeName" type="text" maxlength="40" placeholder="Groceries" required />
         </label>
       </div>
-      <label>Monthly budget
-        <input id="envelopeBudget" type="number" inputmode="decimal" min="0" step="0.01" placeholder="500" required />
+      <label>Funding amount per budget cycle
+        <input id="envelopeBudget" type="number" inputmode="decimal" min="0" step="0.01" placeholder="250" required />
       </label>
       <label class="switch-row">
         <span>
-          <strong>Rollover unused money</strong>
-          <small>Carry any remaining balance into the next month.</small>
+          <strong>Fund every budget cycle</strong>
+          <small>Include this envelope when you confirm a new 14-day cycle. Turn off for manual-only funding.</small>
         </span>
-        <input id="envelopeRollover" type="checkbox" />
+        <input id="envelopeFundEveryCycle" type="checkbox" />
       </label>
       <div class="dialog-actions split-actions">
         <button type="button" id="deleteEnvelopeBtn" class="danger hidden">Delete</button>

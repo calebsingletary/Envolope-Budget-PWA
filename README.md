@@ -1,34 +1,30 @@
 # Envelope Budget PWA
 
-A private, offline-first digital envelope budgeting app. All budget data is stored locally in the browser on the device where you use it.
+A small offline-first digital envelope budget app designed around a 14-day household budget cycle.
 
-## Features
-- Card-style envelope dashboard
-- Tap an envelope to record spending
-- Add, rename, edit, or delete envelopes
-- Change monthly limits without erasing prior spending
-- Optional rollover per envelope
-- Edit/delete transactions
-- Monthly rollover workflow
-- Export/restore JSON backups
-- Installable PWA with offline support
+## Budget-cycle model
 
-## Host on GitHub Pages
-1. Create a new GitHub repository, e.g. `envelope-budget`.
-2. Upload every file and folder from this project to the repository root.
-3. Open **Settings → Pages**.
-4. Under **Build and deployment**, choose **Deploy from a branch**.
-5. Select `main` and `/ (root)`, then Save.
-6. After GitHub finishes deploying, open the Pages URL on your phone.
+- Set the date of the next budget cycle (typically a household payday).
+- The app calculates future cycles every 14 days.
+- Nothing is funded automatically. When the date arrives, the app shows **New Budget Cycle Ready** and requires confirmation.
+- Each envelope has a normal funding amount per cycle and can be included in cycle funding or set to manual-only.
+- Before confirming a cycle, funding amounts can be adjusted for that cycle without changing the normal defaults.
+- Leftover envelope balances always carry forward. Starting a new cycle adds money; it does not reset balances.
 
-## Install on Android
-1. Open the GitHub Pages URL in Chrome.
-2. Use the app's **Install app** button if it appears, or Chrome menu → **Install app / Add to Home screen**.
-3. Launch it from your home screen.
+## Included features
 
-## Install on iPhone
-1. Open the Pages URL in Safari.
-2. Tap Share → **Add to Home Screen**.
+- Envelope cards with current available balances
+- Spending and manual money additions
+- Split transactions across multiple envelopes
+- Budget-cycle funding history
+- Add, edit, and delete envelopes
+- Edit and delete normal transactions
+- JSON backup and restore
+- Offline support and installable PWA manifest
+- Local-only storage in the browser
 
-## Privacy / backups
-Your envelope balances and transactions are not uploaded to GitHub. They live in browser storage on your device. Use **Export backup** periodically and save the JSON file somewhere safe, such as Google Drive.
+## Updating an existing installation
+
+This version keeps the existing `envelope-budget-pwa-v1` local-storage key and migrates older envelope data automatically. Existing monthly budget amounts are preserved as current starting balances, and their per-cycle funding defaults are initialized to half of the old monthly amount.
+
+After replacing the files on GitHub Pages, close and reopen the installed app so the new service worker can take control. Do not clear browser/site data unless you intentionally want to erase local budget data; exporting a backup first is recommended.

@@ -1,15 +1,20 @@
 const STORAGE_KEY = 'envelope-budget-pwa-v1';
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
+const CYCLE_DAYS = 14;
 
 const defaultState = {
-  monthKey: monthKey(new Date()),
+  schemaVersion: 2,
+  cycleDays: CYCLE_DAYS,
+  nextCycleDate: '',
+  currentCycleStartedAt: null,
+  lastCycleDate: '',
   envelopes: [
-    { id: crypto.randomUUID(), name: 'Groceries', emoji: '🥦', budget: 500, rollover: false, carry: 0 },
-    { id: crypto.randomUUID(), name: 'Gas', emoji: '⛽', budget: 300, rollover: false, carry: 0 },
-    { id: crypto.randomUUID(), name: 'Household', emoji: '🧻', budget: 150, rollover: true, carry: 0 },
-    { id: crypto.randomUUID(), name: 'Restaurants', emoji: '🍔', budget: 200, rollover: false, carry: 0 },
-    { id: crypto.randomUUID(), name: 'Shopping', emoji: '🛒', budget: 100, rollover: false, carry: 0 },
-    { id: crypto.randomUUID(), name: 'Maintenance', emoji: '🔧', budget: 100, rollover: true, carry: 0 }
+    { id: crypto.randomUUID(), name: 'Groceries', emoji: '🥦', fundingAmount: 250, fundEveryCycle: true, openingBalance: 0 },
+    { id: crypto.randomUUID(), name: 'Gas', emoji: '⛽', fundingAmount: 150, fundEveryCycle: true, openingBalance: 0 },
+    { id: crypto.randomUUID(), name: 'Household', emoji: '🧻', fundingAmount: 75, fundEveryCycle: true, openingBalance: 0 },
+    { id: crypto.randomUUID(), name: 'Restaurants', emoji: '🍔', fundingAmount: 100, fundEveryCycle: true, openingBalance: 0 },
+    { id: crypto.randomUUID(), name: 'Shopping', emoji: '🛒', fundingAmount: 50, fundEveryCycle: true, openingBalance: 0 },
+    { id: crypto.randomUUID(), name: 'Maintenance', emoji: '🔧', fundingAmount: 50, fundEveryCycle: true, openingBalance: 0 }
   ],
   transactions: []
 };
@@ -52,7 +57,7 @@ const els = {
   envelopeEmoji: document.querySelector('#envelopeEmoji'),
   envelopeName: document.querySelector('#envelopeName'),
   envelopeBudget: document.querySelector('#envelopeBudget'),
-  envelopeRollover: document.querySelector('#envelopeRollover'),
+  envelopeFundEveryCycle: document.querySelector('#envelopeFundEveryCycle'),
   deleteEnvelopeBtn: document.querySelector('#deleteEnvelopeBtn'),
   editTransactionDialog: document.querySelector('#editTransactionDialog'),
   editTransactionForm: document.querySelector('#editTransactionForm'),
@@ -63,23 +68,86 @@ const els = {
   deleteTransactionBtn: document.querySelector('#deleteTransactionBtn'),
   exportBtn: document.querySelector('#exportBtn'),
   importInput: document.querySelector('#importInput'),
-  newMonthBtn: document.querySelector('#newMonthBtn'),
   clearHistoryBtn: document.querySelector('#clearHistoryBtn'),
   installBtn: document.querySelector('#installBtn'),
-  toast: document.querySelector('#toast')
+  toast: document.querySelector('#toast'),
+  cyclePanel: document.querySelector('#cyclePanel'),
+  cycleStatusTitle: document.querySelector('#cycleStatusTitle'),
+  cycleStatusText: document.querySelector('#cycleStatusText'),
+  cycleFundingTotal: document.querySelector('#cycleFundingTotal'),
+  reviewCycleBtn: document.querySelector('#reviewCycleBtn'),
+  cycleDateInput: document.querySelector('#cycleDateInput'),
+  saveCycleDateBtn: document.querySelector('#saveCycleDateBtn'),
+  cycleDialog: document.querySelector('#cycleDialog'),
+  cycleForm: document.querySelector('#cycleForm'),
+  cycleDialogTitle: document.querySelector('#cycleDialogTitle'),
+  cycleDialogText: document.querySelector('#cycleDialogText'),
+  cycleFundingRows: document.querySelector('#cycleFundingRows'),
+  cycleDialogTotal: document.querySelector('#cycleDialogTotal')
 };
 
-function monthKey(date) {
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+function localDateKey(date = new Date()) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseLocalDate(key) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(key || '')) return null;
+  const [year, month, day] = key.split('-').map(Number);
+  const date = new Date(year, month - 1, day, 12, 0, 0, 0);
+  return Number.isNaN(date.getTime()) ? null : date;
+}
+
+function addDaysToDateKey(key, days) {
+  const date = parseLocalDate(key);
+  if (!date) return '';
+  date.setDate(date.getDate() + days);
+  return localDateKey(date);
+}
+
+function formatDateKey(key) {
+  const date = parseLocalDate(key);
+  return date ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set';
+}
+
+function migrateState(parsed) {
+  if (!parsed || !Array.isArray(parsed.envelopes) || !Array.isArray(parsed.transactions)) {
+    return structuredClone(defaultState);
+  }
+
+  const migrated = parsed;
+  migrated.schemaVersion = 2;
+  migrated.cycleDays = CYCLE_DAYS;
+  migrated.nextCycleDate = typeof migrated.nextCycleDate === 'string' ? migrated.nextCycleDate : '';
+  migrated.currentCycleStartedAt = Number.isFinite(Number(migrated.currentCycleStartedAt)) ? Number(migrated.currentCycleStartedAt) : null;
+  migrated.lastCycleDate = typeof migrated.lastCycleDate === 'string' ? migrated.lastCycleDate : '';
+
+  migrated.envelopes = migrated.envelopes.map(env => {
+    const oldBase = Number(env.budget || 0) + Number(env.carry || 0);
+    const fundingAmount = Number.isFinite(Number(env.fundingAmount))
+      ? Number(env.fundingAmount)
+      : Math.max(0, Number(env.budget || 0) / 2);
+    const openingBalance = Number.isFinite(Number(env.openingBalance))
+      ? Number(env.openingBalance)
+      : oldBase;
+    return {
+      ...env,
+      fundingAmount,
+      fundEveryCycle: typeof env.fundEveryCycle === 'boolean' ? env.fundEveryCycle : true,
+      openingBalance
+    };
+  });
+
+  return migrated;
 }
 
 function loadState() {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return structuredClone(defaultState);
-    const parsed = JSON.parse(raw);
-    if (!parsed.envelopes || !parsed.transactions) return structuredClone(defaultState);
-    return parsed;
+    return migrateState(JSON.parse(raw));
   } catch {
     return structuredClone(defaultState);
   }
@@ -105,67 +173,136 @@ function addedForEnvelope(id) {
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 }
 
-function availableForEnvelope(env) {
-  return Number(env.budget || 0) + Number(env.carry || 0);
+function balanceForEnvelope(env) {
+  return Number(env.openingBalance || 0) + addedForEnvelope(env.id) - spentForEnvelope(env.id);
 }
 
-function fundedForEnvelope(env) {
-  return availableForEnvelope(env) + addedForEnvelope(env.id);
+function cycleTransactions() {
+  if (!state.currentCycleStartedAt) return state.transactions;
+  return state.transactions.filter(t => Number(t.createdAt || 0) >= state.currentCycleStartedAt);
+}
+
+function plannedCycleFunding() {
+  return state.envelopes
+    .filter(env => env.fundEveryCycle)
+    .reduce((sum, env) => sum + Number(env.fundingAmount || 0), 0);
+}
+
+function isCycleDue() {
+  const due = parseLocalDate(state.nextCycleDate);
+  if (!due) return false;
+  const today = parseLocalDate(localDateKey());
+  return due.getTime() <= today.getTime();
 }
 
 function render() {
-  const budgeted = state.envelopes.reduce((sum, e) => sum + availableForEnvelope(e), 0);
-  const spent = state.transactions
+  const cycleTx = cycleTransactions();
+  const spent = cycleTx
     .filter(t => !isAddTransaction(t))
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  const added = state.transactions
+  const added = cycleTx
     .filter(isAddTransaction)
     .reduce((sum, t) => sum + Number(t.amount || 0), 0);
-  els.summaryBudgeted.textContent = money.format(budgeted);
+  const available = state.envelopes.reduce((sum, env) => sum + balanceForEnvelope(env), 0);
+
+  els.summaryBudgeted.textContent = money.format(plannedCycleFunding());
   els.summarySpent.textContent = money.format(spent);
   els.summaryAdded.textContent = money.format(added);
-  els.summaryRemaining.textContent = money.format(budgeted + added - spent);
+  els.summaryRemaining.textContent = money.format(available);
 
   els.envelopeGrid.innerHTML = '';
   for (const env of state.envelopes) {
     const spentAmount = spentForEnvelope(env.id);
     const addedAmount = addedForEnvelope(env.id);
-    const funded = fundedForEnvelope(env);
-    const remaining = funded - spentAmount;
-    const pct = funded <= 0 ? 0 : Math.max(0, Math.min(100, (remaining / funded) * 100));
+    const balance = balanceForEnvelope(env);
+    const reference = Math.max(Number(env.fundingAmount || 0), balance + spentAmount, 1);
+    const pct = Math.max(0, Math.min(100, (Math.max(0, balance) / reference) * 100));
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'envelope-card';
     card.innerHTML = `
       <div class="envelope-top">
         <span class="envelope-icon">${escapeHtml(env.emoji || '💵')}</span>
-        <span class="envelope-meta">${env.rollover ? 'Rollover on' : 'Monthly'}</span>
+        <span class="envelope-meta">${env.fundEveryCycle ? `${money.format(Number(env.fundingAmount || 0))} / cycle` : 'Manual funding'}</span>
       </div>
       <div class="envelope-name">${escapeHtml(env.name)}</div>
-      <div class="envelope-remaining ${remaining < 0 ? 'over' : ''}">${money.format(remaining)} left</div>
-      <div class="envelope-meta">${money.format(spentAmount)} spent${addedAmount > 0 ? ` · ${money.format(addedAmount)} added` : ''} · ${money.format(funded)} funded</div>
+      <div class="envelope-remaining ${balance < 0 ? 'over' : ''}">${money.format(balance)} available</div>
+      <div class="envelope-meta">${money.format(spentAmount)} spent${addedAmount > 0 ? ` · ${money.format(addedAmount)} added` : ''}</div>
       <div class="progress" aria-hidden="true"><span style="width:${pct}%"></span></div>
     `;
     card.addEventListener('click', () => openSpendDialog(env.id));
     els.envelopeGrid.appendChild(card);
   }
 
+  renderCyclePanel();
   renderHistory();
   renderTransactionEnvelopeOptions();
+}
+
+function renderCyclePanel() {
+  const total = plannedCycleFunding();
+  els.cycleFundingTotal.textContent = money.format(total);
+  els.cycleDateInput.value = state.nextCycleDate || '';
+
+  if (!state.nextCycleDate) {
+    els.cyclePanel.classList.remove('cycle-ready');
+    els.cycleStatusTitle.textContent = 'Set your next budget cycle';
+    els.cycleStatusText.textContent = 'Choose the next payday that starts your 14-day budget cycle. The app will calculate future cycles from there.';
+    els.reviewCycleBtn.textContent = 'Review cycle funding';
+    els.reviewCycleBtn.disabled = true;
+    return;
+  }
+
+  const due = isCycleDue();
+  els.cyclePanel.classList.toggle('cycle-ready', due);
+  els.cycleStatusTitle.textContent = due ? 'New Budget Cycle Ready' : `Next Budget Cycle: ${formatDateKey(state.nextCycleDate)}`;
+  els.cycleStatusText.textContent = due
+    ? `Funding is ready for ${formatDateKey(state.nextCycleDate)}. Nothing changes until you review and confirm.`
+    : `Your next 14-day cycle begins ${formatDateKey(state.nextCycleDate)}. You can review it early if needed.`;
+  els.reviewCycleBtn.textContent = due ? 'Review & start cycle' : 'Review cycle funding';
+  els.reviewCycleBtn.disabled = false;
 }
 
 function renderHistory() {
   els.historyList.innerHTML = '';
   const sorted = [...state.transactions].sort((a,b) => b.createdAt - a.createdAt);
   if (!sorted.length) {
-    els.historyList.innerHTML = '<div class="empty">No spending recorded yet.</div>';
+    els.historyList.innerHTML = '<div class="empty">No activity recorded yet.</div>';
     return;
   }
 
   const seenGroups = new Set();
+  const seenCycles = new Set();
   let rendered = 0;
+
   for (const t of sorted) {
     if (rendered >= 30) break;
+
+    if (t.cycleId) {
+      if (seenCycles.has(t.cycleId)) continue;
+      seenCycles.add(t.cycleId);
+      const parts = state.transactions.filter(x => x.cycleId === t.cycleId);
+      const totalAmount = parts.reduce((sum, part) => sum + Number(part.amount || 0), 0);
+      const cycleDate = t.cycleDate || localDateKey(new Date(t.createdAt));
+      const breakdown = parts.map(part => {
+        const env = state.envelopes.find(e => e.id === part.envelopeId);
+        return `${escapeHtml(env?.emoji || '💵')} ${escapeHtml(env?.name || 'Deleted envelope')} +${money.format(Number(part.amount || 0))}`;
+      }).join(' · ');
+
+      const row = document.createElement('div');
+      row.className = 'history-item cycle-history';
+      row.innerHTML = `
+        <div>
+          <div class="history-title">Budget cycle funding <span class="add-badge">${formatDateKey(cycleDate)}</span></div>
+          <div class="history-note">Confirmed ${new Date(t.createdAt).toLocaleString()}</div>
+          <div class="split-breakdown">${breakdown}</div>
+        </div>
+        <div class="history-amount history-add">+${money.format(totalAmount)}</div>
+      `;
+      els.historyList.appendChild(row);
+      rendered += 1;
+      continue;
+    }
 
     if (t.groupId) {
       if (seenGroups.has(t.groupId)) continue;
@@ -240,12 +377,8 @@ els.spendForm.addEventListener('submit', (event) => {
   const amount = Number(els.spendAmount.value);
   if (!selectedEnvelopeId || !Number.isFinite(amount) || amount <= 0) return;
   state.transactions.push({
-    id: crypto.randomUUID(),
-    envelopeId: selectedEnvelopeId,
-    type: 'spend',
-    amount,
-    note: els.spendNote.value.trim(),
-    createdAt: Date.now()
+    id: crypto.randomUUID(), envelopeId: selectedEnvelopeId, type: 'spend', amount,
+    note: els.spendNote.value.trim(), createdAt: Date.now()
   });
   saveState();
   els.spendDialog.close();
@@ -260,12 +393,8 @@ els.addMoneyBtn.addEventListener('click', () => {
     return;
   }
   state.transactions.push({
-    id: crypto.randomUUID(),
-    envelopeId: selectedEnvelopeId,
-    type: 'add',
-    amount,
-    note: els.spendNote.value.trim(),
-    createdAt: Date.now()
+    id: crypto.randomUUID(), envelopeId: selectedEnvelopeId, type: 'add', amount,
+    note: els.spendNote.value.trim(), createdAt: Date.now()
   });
   saveState();
   els.spendDialog.close();
@@ -278,7 +407,6 @@ els.editEnvelopeFromSpend.addEventListener('click', () => {
   els.spendDialog.close();
   openEnvelopeDialog(id);
 });
-
 
 els.openSplitFromSpend.addEventListener('click', () => {
   const initialAmount = Number(els.spendAmount.value);
@@ -341,10 +469,7 @@ function createSplitRow(envelopeId = '', amount = '') {
 
 function ensureMinimumSplitRows() {
   const rows = [...els.splitRows.querySelectorAll('.split-row')];
-  for (const row of rows) {
-    const remove = row.querySelector('.remove-split');
-    remove.disabled = rows.length <= 2;
-  }
+  for (const row of rows) row.querySelector('.remove-split').disabled = rows.length <= 2;
 }
 
 function updateSplitTotal() {
@@ -413,13 +538,8 @@ els.splitForm.addEventListener('submit', (event) => {
 
   validParts.forEach((part, index) => {
     state.transactions.push({
-      id: crypto.randomUUID(),
-      groupId,
-      envelopeId: part.envelopeId,
-      type: 'spend',
-      amount: part.amount,
-      note,
-      createdAt: createdAt + index
+      id: crypto.randomUUID(), groupId, envelopeId: part.envelopeId, type: 'spend',
+      amount: part.amount, note, createdAt: createdAt + index
     });
   });
 
@@ -448,8 +568,8 @@ function openEnvelopeDialog(id = null) {
   els.envelopeDialogTitle.textContent = env ? 'Edit envelope' : 'Add envelope';
   els.envelopeEmoji.value = env?.emoji || '💵';
   els.envelopeName.value = env?.name || '';
-  els.envelopeBudget.value = env ? env.budget : '';
-  els.envelopeRollover.checked = Boolean(env?.rollover);
+  els.envelopeBudget.value = env ? env.fundingAmount : '';
+  els.envelopeFundEveryCycle.checked = env ? Boolean(env.fundEveryCycle) : true;
   els.deleteEnvelopeBtn.classList.toggle('hidden', !env);
   els.envelopeDialog.showModal();
   setTimeout(() => els.envelopeName.focus(), 30);
@@ -458,17 +578,21 @@ function openEnvelopeDialog(id = null) {
 els.envelopeForm.addEventListener('submit', (event) => {
   event.preventDefault();
   const name = els.envelopeName.value.trim();
-  const budget = Number(els.envelopeBudget.value);
-  if (!name || !Number.isFinite(budget) || budget < 0) return;
+  const fundingAmount = Number(els.envelopeBudget.value);
+  if (!name || !Number.isFinite(fundingAmount) || fundingAmount < 0) return;
+
   if (editingEnvelopeId) {
     const env = state.envelopes.find(e => e.id === editingEnvelopeId);
     if (!env) return;
     env.name = name;
     env.emoji = els.envelopeEmoji.value.trim() || '💵';
-    env.budget = budget;
-    env.rollover = els.envelopeRollover.checked;
+    env.fundingAmount = fundingAmount;
+    env.fundEveryCycle = els.envelopeFundEveryCycle.checked;
   } else {
-    state.envelopes.push({ id: crypto.randomUUID(), name, emoji: els.envelopeEmoji.value.trim() || '💵', budget, rollover: els.envelopeRollover.checked, carry: 0 });
+    state.envelopes.push({
+      id: crypto.randomUUID(), name, emoji: els.envelopeEmoji.value.trim() || '💵',
+      fundingAmount, fundEveryCycle: els.envelopeFundEveryCycle.checked, openingBalance: 0
+    });
   }
   saveState();
   els.envelopeDialog.close();
@@ -501,7 +625,7 @@ function renderTransactionEnvelopeOptions() {
 
 function openEditTransaction(id) {
   const t = state.transactions.find(x => x.id === id);
-  if (!t) return;
+  if (!t || t.cycleId) return;
   editingTransactionId = id;
   renderTransactionEnvelopeOptions();
   els.editTransactionEnvelope.value = t.envelopeId;
@@ -536,24 +660,91 @@ els.deleteTransactionBtn.addEventListener('click', () => {
   render();
 });
 
-els.newMonthBtn.addEventListener('click', () => {
-  if (!confirm('Start a new month? Rollover envelopes will carry unused money forward; transaction history for the current month will be cleared from the active budget. Export a backup first if you want to keep a file copy.')) return;
-  for (const env of state.envelopes) {
-    const remaining = fundedForEnvelope(env) - spentForEnvelope(env.id);
-    env.carry = env.rollover ? Math.max(0, remaining) : 0;
+function openCycleDialog() {
+  if (!state.nextCycleDate) return;
+  const envelopes = state.envelopes.filter(env => env.fundEveryCycle);
+  if (!envelopes.length) {
+    alert('No envelopes are set to fund every budget cycle. Edit an envelope or add money manually.');
+    return;
   }
-  state.transactions = [];
-  state.monthKey = monthKey(new Date());
+
+  els.cycleDialogTitle.textContent = isCycleDue() ? 'New Budget Cycle Ready' : 'Review Budget Cycle';
+  els.cycleDialogText.textContent = isCycleDue()
+    ? `${formatDateKey(state.nextCycleDate)} is ready. Leftover balances stay in place; confirming only adds this cycle's funding.`
+    : `This cycle is scheduled for ${formatDateKey(state.nextCycleDate)}. You can adjust amounts for this cycle without changing the normal defaults.`;
+  els.cycleFundingRows.innerHTML = '';
+
+  for (const env of envelopes) {
+    const row = document.createElement('label');
+    row.className = 'cycle-funding-row';
+    row.innerHTML = `
+      <span><strong>${escapeHtml(env.emoji || '💵')} ${escapeHtml(env.name)}</strong><small>Current balance: ${money.format(balanceForEnvelope(env))}</small></span>
+      <input class="cycle-funding-input" data-envelope-id="${escapeHtml(env.id)}" type="number" inputmode="decimal" min="0" step="0.01" value="${Number(env.fundingAmount || 0).toFixed(2)}" />
+    `;
+    row.querySelector('input').addEventListener('input', updateCycleDialogTotal);
+    els.cycleFundingRows.appendChild(row);
+  }
+  updateCycleDialogTotal();
+  els.cycleDialog.showModal();
+}
+
+function updateCycleDialogTotal() {
+  const total = [...els.cycleFundingRows.querySelectorAll('.cycle-funding-input')]
+    .reduce((sum, input) => sum + (Number(input.value) || 0), 0);
+  els.cycleDialogTotal.textContent = money.format(total);
+}
+
+els.reviewCycleBtn.addEventListener('click', openCycleDialog);
+
+els.saveCycleDateBtn.addEventListener('click', () => {
+  const key = els.cycleDateInput.value;
+  if (!parseLocalDate(key)) {
+    alert('Choose a valid next budget cycle date.');
+    return;
+  }
+  state.nextCycleDate = key;
   saveState();
-  toast('New month started');
+  toast('Budget cycle date saved');
+  render();
+});
+
+els.cycleForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  if (!state.nextCycleDate) return;
+  const inputs = [...els.cycleFundingRows.querySelectorAll('.cycle-funding-input')];
+  const entries = inputs.map(input => ({
+    envelopeId: input.dataset.envelopeId,
+    amount: Number(input.value)
+  }));
+  if (entries.some(entry => !Number.isFinite(entry.amount) || entry.amount < 0)) return;
+
+  const cycleId = crypto.randomUUID();
+  const cycleDate = state.nextCycleDate;
+  const startedAt = Date.now();
+  state.currentCycleStartedAt = startedAt;
+
+  entries.filter(entry => entry.amount > 0).forEach((entry, index) => {
+    state.transactions.push({
+      id: crypto.randomUUID(), envelopeId: entry.envelopeId, type: 'add', amount: entry.amount,
+      note: 'Budget cycle funding', cycleId, cycleDate, createdAt: startedAt + index
+    });
+  });
+
+  state.lastCycleDate = cycleDate;
+  state.nextCycleDate = addDaysToDateKey(cycleDate, state.cycleDays || CYCLE_DAYS);
+  saveState();
+  els.cycleDialog.close();
+  toast('New budget cycle started');
   render();
 });
 
 els.clearHistoryBtn.addEventListener('click', () => {
-  if (!state.transactions.length || !confirm('Clear all current transaction history? Envelope spending totals will reset too.')) return;
+  if (!state.transactions.length || !confirm('Clear all activity history? Current envelope balances will be preserved.')) return;
+  for (const env of state.envelopes) env.openingBalance = balanceForEnvelope(env);
   state.transactions = [];
+  state.currentCycleStartedAt = null;
   saveState();
-  toast('History cleared');
+  toast('Activity cleared; balances preserved');
   render();
 });
 
@@ -576,7 +767,7 @@ els.importInput.addEventListener('change', async () => {
   try {
     const parsed = JSON.parse(await file.text());
     if (!Array.isArray(parsed.envelopes) || !Array.isArray(parsed.transactions)) throw new Error('Invalid backup');
-    state = parsed;
+    state = migrateState(parsed);
     saveState();
     render();
     toast('Backup restored');
@@ -625,4 +816,5 @@ function escapeHtml(value) {
   return String(value).replace(/[&<>'"]/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[ch]));
 }
 
+saveState();
 render();
