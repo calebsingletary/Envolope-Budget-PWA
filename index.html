@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#2f6f5e" />
+  <meta name="description" content="A private, offline-first digital envelope budget app." />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="icon" href="icon-192.png" />
+  <link rel="apple-touch-icon" href="icon-192.png" />
+  <link rel="stylesheet" href="styles.css" />
+  <title>Envelope Budget</title>
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Digital envelope budget</p>
+        <h1>Envelope Budget</h1>
+      </div>
+      <button id="installBtn" class="secondary hidden">Install app</button>
+    </header>
+
+    <main>
+      <section class="summary-grid" aria-label="Budget summary">
+        <article class="summary-card">
+          <span>Budgeted</span>
+          <strong id="summaryBudgeted">$0.00</strong>
+        </article>
+        <article class="summary-card">
+          <span>Spent</span>
+          <strong id="summarySpent">$0.00</strong>
+        </article>
+        <article class="summary-card accent-card">
+          <span>Remaining</span>
+          <strong id="summaryRemaining">$0.00</strong>
+        </article>
+      </section>
+
+      <section class="section-header">
+        <div>
+          <h2>Your envelopes</h2>
+          <p>Tap an envelope to record spending.</p>
+        </div>
+        <button id="addEnvelopeBtn" class="primary">+ Add envelope</button>
+      </section>
+
+      <section id="envelopeGrid" class="envelope-grid" aria-live="polite"></section>
+
+      <section class="panel">
+        <div class="section-header compact">
+          <div>
+            <h2>Recent activity</h2>
+            <p>Edit or remove mistakes without touching your bank account.</p>
+          </div>
+          <button id="clearHistoryBtn" class="text-button">Clear history</button>
+        </div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <section class="panel settings-panel">
+        <h2>Backup & month controls</h2>
+        <div class="button-row">
+          <button id="exportBtn" class="secondary">Export backup</button>
+          <label class="secondary file-button">Restore backup<input id="importInput" type="file" accept="application/json" /></label>
+          <button id="newMonthBtn" class="secondary">Start new month</button>
+        </div>
+        <p class="fine-print">Your budget data is stored locally on this device. Export a backup occasionally so you can restore it after changing phones or clearing browser data.</p>
+      </section>
+    </main>
+  </div>
+
+  <dialog id="spendDialog">
+    <form method="dialog" id="spendForm" class="dialog-card">
+      <div class="dialog-title-row">
+        <div>
+          <p class="eyebrow">Record spending</p>
+          <h2 id="spendTitle">Envelope</h2>
+        </div>
+        <button type="button" class="icon-button" data-close="spendDialog" aria-label="Close">×</button>
+      </div>
+      <label>Amount
+        <input id="spendAmount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+      </label>
+      <label>Note <span class="optional">optional</span>
+        <input id="spendNote" type="text" maxlength="80" placeholder="Aldi, gas, dinner..." />
+      </label>
+      <div class="dialog-actions">
+        <button type="button" id="editEnvelopeFromSpend" class="secondary">Edit envelope</button>
+        <button type="submit" class="primary">Save spending</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="envelopeDialog">
+    <form method="dialog" id="envelopeForm" class="dialog-card">
+      <div class="dialog-title-row">
+        <div>
+          <p class="eyebrow" id="envelopeEyebrow">Envelope settings</p>
+          <h2 id="envelopeDialogTitle">Add envelope</h2>
+        </div>
+        <button type="button" class="icon-button" data-close="envelopeDialog" aria-label="Close">×</button>
+      </div>
+      <div class="form-grid">
+        <label>Emoji
+          <input id="envelopeEmoji" type="text" maxlength="4" placeholder="💵" />
+        </label>
+        <label>Name
+          <input id="envelopeName" type="text" maxlength="40" placeholder="Groceries" required />
+        </label>
+      </div>
+      <label>Monthly budget
+        <input id="envelopeBudget" type="number" inputmode="decimal" min="0" step="0.01" placeholder="500" required />
+      </label>
+      <label class="switch-row">
+        <span>
+          <strong>Rollover unused money</strong>
+          <small>Carry any remaining balance into the next month.</small>
+        </span>
+        <input id="envelopeRollover" type="checkbox" />
+      </label>
+      <div class="dialog-actions split-actions">
+        <button type="button" id="deleteEnvelopeBtn" class="danger hidden">Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="secondary" data-close="envelopeDialog">Cancel</button>
+        <button type="submit" class="primary">Save envelope</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="editTransactionDialog">
+    <form method="dialog" id="editTransactionForm" class="dialog-card">
+      <div class="dialog-title-row">
+        <div>
+          <p class="eyebrow">Edit transaction</p>
+          <h2>Transaction</h2>
+        </div>
+        <button type="button" class="icon-button" data-close="editTransactionDialog" aria-label="Close">×</button>
+      </div>
+      <label>Envelope
+        <select id="editTransactionEnvelope"></select>
+      </label>
+      <label>Amount
+        <input id="editTransactionAmount" type="number" inputmode="decimal" min="0.01" step="0.01" required />
+      </label>
+      <label>Note
+        <input id="editTransactionNote" type="text" maxlength="80" />
+      </label>
+      <div class="dialog-actions split-actions">
+        <button type="button" id="deleteTransactionBtn" class="danger">Delete</button>
+        <span class="spacer"></span>
+        <button type="button" class="secondary" data-close="editTransactionDialog">Cancel</button>
+        <button type="submit" class="primary">Save changes</button>
+      </div>
+    </form>
+  </dialog>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+  <script src="app.js"></script>
+</body>
+</html>
