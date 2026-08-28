@@ -48,7 +48,7 @@ h2 { font-size: 1.15rem; }
 .section-header p, .fine-print, small, .optional { color: var(--muted); }
 .section-header p { margin-top: 4px; font-size: 0.92rem; }
 .section-header.compact { margin: 0 0 12px; }
-.summary-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+.summary-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
 .summary-card, .panel, .envelope-card { background: var(--surface); border: 1px solid var(--border); border-radius: 18px; box-shadow: var(--shadow); }
 .summary-card { padding: 16px; }
 .summary-card span { display: block; color: var(--muted); font-size: 0.86rem; margin-bottom: 4px; }
@@ -72,6 +72,8 @@ h2 { font-size: 1.15rem; }
 .history-title { font-weight: 700; }
 .history-note { color: var(--muted); font-size: 0.86rem; margin-top: 2px; }
 .history-amount { font-weight: 800; }
+.history-add { color: var(--accent); }
+.add-badge { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: var(--accent-2); color: var(--accent); font-size: 0.72rem; font-weight: 700; vertical-align: 1px; }
 .empty { color: var(--muted); padding: 12px 0; }
 .primary, .secondary, .danger, .text-button, .file-button, .icon-button { min-height: 44px; border-radius: 12px; border: 1px solid transparent; padding: 10px 14px; }
 .primary { background: var(--accent); color: #fff; border-color: var(--accent); font-weight: 700; }
@@ -101,7 +103,7 @@ input, select { width: 100%; min-height: 46px; border-radius: 12px; border: 1px 
 
 @media (max-width: 640px) {
   .summary-grid { grid-template-columns: 1fr 1fr; }
-  .summary-card:last-child { grid-column: 1 / -1; }
+  .summary-card:last-child { grid-column: auto; }
   .section-header { align-items: flex-start; }
   .envelope-grid { grid-template-columns: 1fr; }
   .envelope-card { min-height: 145px; }

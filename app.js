@@ -25,6 +25,7 @@ const els = {
   envelopeGrid: document.querySelector('#envelopeGrid'),
   summaryBudgeted: document.querySelector('#summaryBudgeted'),
   summarySpent: document.querySelector('#summarySpent'),
+  summaryAdded: document.querySelector('#summaryAdded'),
   summaryRemaining: document.querySelector('#summaryRemaining'),
   historyList: document.querySelector('#historyList'),
   addEnvelopeBtn: document.querySelector('#addEnvelopeBtn'),
@@ -33,6 +34,7 @@ const els = {
   spendTitle: document.querySelector('#spendTitle'),
   spendAmount: document.querySelector('#spendAmount'),
   spendNote: document.querySelector('#spendNote'),
+  addMoneyBtn: document.querySelector('#addMoneyBtn'),
   editEnvelopeFromSpend: document.querySelector('#editEnvelopeFromSpend'),
   openSplitFromSpend: document.querySelector('#openSplitFromSpend'),
   splitDialog: document.querySelector('#splitDialog'),
@@ -55,6 +57,7 @@ const els = {
   editTransactionDialog: document.querySelector('#editTransactionDialog'),
   editTransactionForm: document.querySelector('#editTransactionForm'),
   editTransactionEnvelope: document.querySelector('#editTransactionEnvelope'),
+  editTransactionType: document.querySelector('#editTransactionType'),
   editTransactionAmount: document.querySelector('#editTransactionAmount'),
   editTransactionNote: document.querySelector('#editTransactionNote'),
   deleteTransactionBtn: document.querySelector('#deleteTransactionBtn'),
@@ -86,27 +89,50 @@ function saveState() {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
 }
 
+function isAddTransaction(t) {
+  return t?.type === 'add';
+}
+
 function spentForEnvelope(id) {
-  return state.transactions.filter(t => t.envelopeId === id).reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  return state.transactions
+    .filter(t => t.envelopeId === id && !isAddTransaction(t))
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+}
+
+function addedForEnvelope(id) {
+  return state.transactions
+    .filter(t => t.envelopeId === id && isAddTransaction(t))
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
 }
 
 function availableForEnvelope(env) {
   return Number(env.budget || 0) + Number(env.carry || 0);
 }
 
+function fundedForEnvelope(env) {
+  return availableForEnvelope(env) + addedForEnvelope(env.id);
+}
+
 function render() {
   const budgeted = state.envelopes.reduce((sum, e) => sum + availableForEnvelope(e), 0);
-  const spent = state.transactions.reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const spent = state.transactions
+    .filter(t => !isAddTransaction(t))
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
+  const added = state.transactions
+    .filter(isAddTransaction)
+    .reduce((sum, t) => sum + Number(t.amount || 0), 0);
   els.summaryBudgeted.textContent = money.format(budgeted);
   els.summarySpent.textContent = money.format(spent);
-  els.summaryRemaining.textContent = money.format(budgeted - spent);
+  els.summaryAdded.textContent = money.format(added);
+  els.summaryRemaining.textContent = money.format(budgeted + added - spent);
 
   els.envelopeGrid.innerHTML = '';
   for (const env of state.envelopes) {
     const spentAmount = spentForEnvelope(env.id);
-    const available = availableForEnvelope(env);
-    const remaining = available - spentAmount;
-    const pct = available <= 0 ? 0 : Math.max(0, Math.min(100, (remaining / available) * 100));
+    const addedAmount = addedForEnvelope(env.id);
+    const funded = fundedForEnvelope(env);
+    const remaining = funded - spentAmount;
+    const pct = funded <= 0 ? 0 : Math.max(0, Math.min(100, (remaining / funded) * 100));
     const card = document.createElement('button');
     card.type = 'button';
     card.className = 'envelope-card';
@@ -117,7 +143,7 @@ function render() {
       </div>
       <div class="envelope-name">${escapeHtml(env.name)}</div>
       <div class="envelope-remaining ${remaining < 0 ? 'over' : ''}">${money.format(remaining)} left</div>
-      <div class="envelope-meta">${money.format(spentAmount)} spent of ${money.format(available)}</div>
+      <div class="envelope-meta">${money.format(spentAmount)} spent${addedAmount > 0 ? ` · ${money.format(addedAmount)} added` : ''} · ${money.format(funded)} funded</div>
       <div class="progress" aria-hidden="true"><span style="width:${pct}%"></span></div>
     `;
     card.addEventListener('click', () => openSpendDialog(env.id));
@@ -179,12 +205,13 @@ function renderHistory() {
     const env = state.envelopes.find(e => e.id === t.envelopeId);
     const row = document.createElement('div');
     row.className = 'history-item';
+    const isAdd = isAddTransaction(t);
     row.innerHTML = `
       <div>
-        <div class="history-title">${escapeHtml(env?.emoji || '💵')} ${escapeHtml(env?.name || 'Deleted envelope')}</div>
+        <div class="history-title">${escapeHtml(env?.emoji || '💵')} ${escapeHtml(env?.name || 'Deleted envelope')}${isAdd ? ' <span class="add-badge">Money added</span>' : ''}</div>
         <div class="history-note">${t.note ? escapeHtml(t.note) + ' · ' : ''}${new Date(t.createdAt).toLocaleString()}</div>
       </div>
-      <div class="history-amount">-${money.format(Number(t.amount || 0))}</div>
+      <div class="history-amount ${isAdd ? 'history-add' : ''}">${isAdd ? '+' : '-'}${money.format(Number(t.amount || 0))}</div>
     `;
     const edit = document.createElement('button');
     edit.type = 'button';
@@ -215,6 +242,7 @@ els.spendForm.addEventListener('submit', (event) => {
   state.transactions.push({
     id: crypto.randomUUID(),
     envelopeId: selectedEnvelopeId,
+    type: 'spend',
     amount,
     note: els.spendNote.value.trim(),
     createdAt: Date.now()
@@ -222,6 +250,26 @@ els.spendForm.addEventListener('submit', (event) => {
   saveState();
   els.spendDialog.close();
   toast('Spending saved');
+  render();
+});
+
+els.addMoneyBtn.addEventListener('click', () => {
+  const amount = Number(els.spendAmount.value);
+  if (!selectedEnvelopeId || !Number.isFinite(amount) || amount <= 0) {
+    els.spendAmount.focus();
+    return;
+  }
+  state.transactions.push({
+    id: crypto.randomUUID(),
+    envelopeId: selectedEnvelopeId,
+    type: 'add',
+    amount,
+    note: els.spendNote.value.trim(),
+    createdAt: Date.now()
+  });
+  saveState();
+  els.spendDialog.close();
+  toast('Money added');
   render();
 });
 
@@ -368,6 +416,7 @@ els.splitForm.addEventListener('submit', (event) => {
       id: crypto.randomUUID(),
       groupId,
       envelopeId: part.envelopeId,
+      type: 'spend',
       amount: part.amount,
       note,
       createdAt: createdAt + index
@@ -456,6 +505,7 @@ function openEditTransaction(id) {
   editingTransactionId = id;
   renderTransactionEnvelopeOptions();
   els.editTransactionEnvelope.value = t.envelopeId;
+  els.editTransactionType.value = isAddTransaction(t) ? 'add' : 'spend';
   els.editTransactionAmount.value = t.amount;
   els.editTransactionNote.value = t.note || '';
   els.editTransactionDialog.showModal();
@@ -468,6 +518,7 @@ els.editTransactionForm.addEventListener('submit', (event) => {
   const amount = Number(els.editTransactionAmount.value);
   if (!Number.isFinite(amount) || amount <= 0) return;
   t.envelopeId = els.editTransactionEnvelope.value;
+  t.type = els.editTransactionType.value === 'add' ? 'add' : 'spend';
   t.amount = amount;
   t.note = els.editTransactionNote.value.trim();
   saveState();
@@ -488,7 +539,7 @@ els.deleteTransactionBtn.addEventListener('click', () => {
 els.newMonthBtn.addEventListener('click', () => {
   if (!confirm('Start a new month? Rollover envelopes will carry unused money forward; transaction history for the current month will be cleared from the active budget. Export a backup first if you want to keep a file copy.')) return;
   for (const env of state.envelopes) {
-    const remaining = availableForEnvelope(env) - spentForEnvelope(env.id);
+    const remaining = fundedForEnvelope(env) - spentForEnvelope(env.id);
     env.carry = env.rollover ? Math.max(0, remaining) : 0;
   }
   state.transactions = [];

@@ -31,6 +31,10 @@
           <span>Spent</span>
           <strong id="summarySpent">$0.00</strong>
         </article>
+        <article class="summary-card">
+          <span>Added</span>
+          <strong id="summaryAdded">$0.00</strong>
+        </article>
         <article class="summary-card accent-card">
           <span>Remaining</span>
           <strong id="summaryRemaining">$0.00</strong>
@@ -40,7 +44,7 @@
       <section class="section-header">
         <div>
           <h2>Your envelopes</h2>
-          <p>Tap an envelope to record spending.</p>
+          <p>Tap an envelope to spend from it or add money.</p>
         </div>
         <button id="addEnvelopeBtn" class="primary">+ Add envelope</button>
       </section>
@@ -74,7 +78,7 @@
     <form method="dialog" id="spendForm" class="dialog-card">
       <div class="dialog-title-row">
         <div>
-          <p class="eyebrow">Record spending</p>
+          <p class="eyebrow">Envelope activity</p>
           <h2 id="spendTitle">Envelope</h2>
         </div>
         <button type="button" class="icon-button" data-close="spendDialog" aria-label="Close">×</button>
@@ -88,6 +92,7 @@
       <div class="dialog-actions">
         <button type="button" id="editEnvelopeFromSpend" class="secondary">Edit envelope</button>
         <button type="button" id="openSplitFromSpend" class="secondary">Split transaction</button>
+        <button type="button" id="addMoneyBtn" class="secondary add-money">+ Add money</button>
         <button type="submit" class="primary">Save spending</button>
       </div>
     </form>
@@ -169,6 +174,12 @@
       </div>
       <label>Envelope
         <select id="editTransactionEnvelope"></select>
+      </label>
+      <label>Transaction type
+        <select id="editTransactionType">
+          <option value="spend">Spending</option>
+          <option value="add">Add money</option>
+        </select>
       </label>
       <label>Amount
         <input id="editTransactionAmount" type="number" inputmode="decimal" min="0.01" step="0.01" required />
