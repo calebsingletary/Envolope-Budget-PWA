@@ -18,6 +18,7 @@ let state = loadState();
 let selectedEnvelopeId = null;
 let editingEnvelopeId = null;
 let editingTransactionId = null;
+let editingSplitGroupId = null;
 let deferredInstallPrompt = null;
 
 const els = {
@@ -33,6 +34,16 @@ const els = {
   spendAmount: document.querySelector('#spendAmount'),
   spendNote: document.querySelector('#spendNote'),
   editEnvelopeFromSpend: document.querySelector('#editEnvelopeFromSpend'),
+  openSplitFromSpend: document.querySelector('#openSplitFromSpend'),
+  splitDialog: document.querySelector('#splitDialog'),
+  splitForm: document.querySelector('#splitForm'),
+  splitDialogTitle: document.querySelector('#splitDialogTitle'),
+  splitRows: document.querySelector('#splitRows'),
+  addSplitRowBtn: document.querySelector('#addSplitRowBtn'),
+  splitNote: document.querySelector('#splitNote'),
+  splitTotal: document.querySelector('#splitTotal'),
+  splitError: document.querySelector('#splitError'),
+  deleteSplitBtn: document.querySelector('#deleteSplitBtn'),
   envelopeDialog: document.querySelector('#envelopeDialog'),
   envelopeForm: document.querySelector('#envelopeForm'),
   envelopeDialogTitle: document.querySelector('#envelopeDialogTitle'),
@@ -119,12 +130,52 @@ function render() {
 
 function renderHistory() {
   els.historyList.innerHTML = '';
-  const tx = [...state.transactions].sort((a,b) => b.createdAt - a.createdAt);
-  if (!tx.length) {
+  const sorted = [...state.transactions].sort((a,b) => b.createdAt - a.createdAt);
+  if (!sorted.length) {
     els.historyList.innerHTML = '<div class="empty">No spending recorded yet.</div>';
     return;
   }
-  for (const t of tx.slice(0, 30)) {
+
+  const seenGroups = new Set();
+  let rendered = 0;
+  for (const t of sorted) {
+    if (rendered >= 30) break;
+
+    if (t.groupId) {
+      if (seenGroups.has(t.groupId)) continue;
+      seenGroups.add(t.groupId);
+      const parts = state.transactions
+        .filter(x => x.groupId === t.groupId)
+        .sort((a,b) => a.createdAt - b.createdAt);
+      const totalAmount = parts.reduce((sum, part) => sum + Number(part.amount || 0), 0);
+      const first = parts[0];
+      const note = first?.note || '';
+      const breakdown = parts.map(part => {
+        const env = state.envelopes.find(e => e.id === part.envelopeId);
+        return `${escapeHtml(env?.emoji || '💵')} ${escapeHtml(env?.name || 'Deleted envelope')} ${money.format(Number(part.amount || 0))}`;
+      }).join(' · ');
+
+      const row = document.createElement('div');
+      row.className = 'history-item';
+      row.innerHTML = `
+        <div>
+          <div class="history-title">Split transaction <span class="split-badge">${parts.length} envelopes</span></div>
+          <div class="history-note">${note ? escapeHtml(note) + ' · ' : ''}${new Date(first?.createdAt || t.createdAt).toLocaleString()}</div>
+          <div class="split-breakdown">${breakdown}</div>
+        </div>
+        <div class="history-amount">-${money.format(totalAmount)}</div>
+      `;
+      const edit = document.createElement('button');
+      edit.type = 'button';
+      edit.className = 'secondary history-edit';
+      edit.textContent = 'Edit';
+      edit.addEventListener('click', () => openSplitDialog({ groupId: t.groupId }));
+      row.appendChild(edit);
+      els.historyList.appendChild(row);
+      rendered += 1;
+      continue;
+    }
+
     const env = state.envelopes.find(e => e.id === t.envelopeId);
     const row = document.createElement('div');
     row.className = 'history-item';
@@ -142,6 +193,7 @@ function renderHistory() {
     edit.addEventListener('click', () => openEditTransaction(t.id));
     row.appendChild(edit);
     els.historyList.appendChild(row);
+    rendered += 1;
   }
 }
 
@@ -177,6 +229,166 @@ els.editEnvelopeFromSpend.addEventListener('click', () => {
   const id = selectedEnvelopeId;
   els.spendDialog.close();
   openEnvelopeDialog(id);
+});
+
+
+els.openSplitFromSpend.addEventListener('click', () => {
+  const initialAmount = Number(els.spendAmount.value);
+  const initialNote = els.spendNote.value.trim();
+  const initialEnvelopeId = selectedEnvelopeId;
+  els.spendDialog.close();
+  openSplitDialog({
+    initialEnvelopeId,
+    initialAmount: Number.isFinite(initialAmount) && initialAmount > 0 ? initialAmount : null,
+    note: initialNote
+  });
+});
+
+function createSplitRow(envelopeId = '', amount = '') {
+  const row = document.createElement('div');
+  row.className = 'split-row';
+
+  const envLabel = document.createElement('label');
+  envLabel.textContent = 'Envelope';
+  const select = document.createElement('select');
+  select.className = 'split-envelope';
+  for (const env of state.envelopes) {
+    const option = document.createElement('option');
+    option.value = env.id;
+    option.textContent = `${env.emoji || '💵'} ${env.name}`;
+    select.appendChild(option);
+  }
+  if (envelopeId && state.envelopes.some(e => e.id === envelopeId)) select.value = envelopeId;
+  envLabel.appendChild(select);
+
+  const amountLabel = document.createElement('label');
+  amountLabel.textContent = 'Amount';
+  const input = document.createElement('input');
+  input.className = 'split-amount';
+  input.type = 'number';
+  input.inputMode = 'decimal';
+  input.min = '0.01';
+  input.step = '0.01';
+  input.placeholder = '0.00';
+  input.value = amount === '' ? '' : Number(amount).toFixed(2);
+  amountLabel.appendChild(input);
+
+  const remove = document.createElement('button');
+  remove.type = 'button';
+  remove.className = 'remove-split';
+  remove.setAttribute('aria-label', 'Remove split row');
+  remove.textContent = '×';
+  remove.addEventListener('click', () => {
+    row.remove();
+    ensureMinimumSplitRows();
+    updateSplitTotal();
+  });
+
+  input.addEventListener('input', updateSplitTotal);
+  row.append(envLabel, amountLabel, remove);
+  els.splitRows.appendChild(row);
+  ensureMinimumSplitRows();
+  return row;
+}
+
+function ensureMinimumSplitRows() {
+  const rows = [...els.splitRows.querySelectorAll('.split-row')];
+  for (const row of rows) {
+    const remove = row.querySelector('.remove-split');
+    remove.disabled = rows.length <= 2;
+  }
+}
+
+function updateSplitTotal() {
+  const total = [...els.splitRows.querySelectorAll('.split-amount')]
+    .reduce((sum, input) => sum + (Number(input.value) || 0), 0);
+  els.splitTotal.textContent = money.format(total);
+}
+
+function openSplitDialog({ initialEnvelopeId = null, initialAmount = null, note = '', groupId = null } = {}) {
+  if (state.envelopes.length < 2) {
+    alert('Add at least two envelopes before creating a split transaction.');
+    return;
+  }
+  editingSplitGroupId = groupId;
+  els.splitDialogTitle.textContent = groupId ? 'Edit split transaction' : 'Split transaction';
+  els.deleteSplitBtn.classList.toggle('hidden', !groupId);
+  els.splitRows.innerHTML = '';
+  els.splitError.textContent = '';
+
+  if (groupId) {
+    const parts = state.transactions.filter(t => t.groupId === groupId).sort((a,b) => a.createdAt - b.createdAt);
+    if (!parts.length) return;
+    els.splitNote.value = parts[0].note || '';
+    for (const part of parts) createSplitRow(part.envelopeId, part.amount);
+  } else {
+    els.splitNote.value = note || '';
+    const firstId = initialEnvelopeId || state.envelopes[0].id;
+    const alternate = state.envelopes.find(e => e.id !== firstId)?.id || state.envelopes[0].id;
+    createSplitRow(firstId, initialAmount || '');
+    createSplitRow(alternate, '');
+  }
+
+  updateSplitTotal();
+  els.splitDialog.showModal();
+  setTimeout(() => els.splitRows.querySelector('.split-amount')?.focus(), 30);
+}
+
+els.addSplitRowBtn.addEventListener('click', () => {
+  createSplitRow(state.envelopes[0]?.id || '', '');
+  updateSplitTotal();
+});
+
+els.splitForm.addEventListener('submit', (event) => {
+  event.preventDefault();
+  const rows = [...els.splitRows.querySelectorAll('.split-row')];
+  const parts = rows.map(row => ({
+    envelopeId: row.querySelector('.split-envelope').value,
+    amount: Number(row.querySelector('.split-amount').value)
+  }));
+  const validParts = parts.filter(part => Number.isFinite(part.amount) && part.amount > 0);
+
+  if (validParts.length < 2 || validParts.length !== parts.length) {
+    els.splitError.textContent = 'Enter an amount greater than $0 for at least two envelopes.';
+    return;
+  }
+
+  const note = els.splitNote.value.trim();
+  const groupId = editingSplitGroupId || crypto.randomUUID();
+  let createdAt = Date.now();
+
+  if (editingSplitGroupId) {
+    const existing = state.transactions.filter(t => t.groupId === editingSplitGroupId);
+    if (existing.length) createdAt = Math.min(...existing.map(t => t.createdAt));
+    state.transactions = state.transactions.filter(t => t.groupId !== editingSplitGroupId);
+  }
+
+  validParts.forEach((part, index) => {
+    state.transactions.push({
+      id: crypto.randomUUID(),
+      groupId,
+      envelopeId: part.envelopeId,
+      amount: part.amount,
+      note,
+      createdAt: createdAt + index
+    });
+  });
+
+  saveState();
+  els.splitDialog.close();
+  toast(editingSplitGroupId ? 'Split transaction updated' : 'Split transaction saved');
+  editingSplitGroupId = null;
+  render();
+});
+
+els.deleteSplitBtn.addEventListener('click', () => {
+  if (!editingSplitGroupId || !confirm('Delete this entire split transaction?')) return;
+  state.transactions = state.transactions.filter(t => t.groupId !== editingSplitGroupId);
+  saveState();
+  els.splitDialog.close();
+  editingSplitGroupId = null;
+  toast('Split transaction deleted');
+  render();
 });
 
 els.addEnvelopeBtn.addEventListener('click', () => openEnvelopeDialog());

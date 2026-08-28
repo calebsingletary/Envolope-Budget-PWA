@@ -87,7 +87,37 @@
       </label>
       <div class="dialog-actions">
         <button type="button" id="editEnvelopeFromSpend" class="secondary">Edit envelope</button>
+        <button type="button" id="openSplitFromSpend" class="secondary">Split transaction</button>
         <button type="submit" class="primary">Save spending</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="splitDialog">
+    <form method="dialog" id="splitForm" class="dialog-card">
+      <div class="dialog-title-row">
+        <div>
+          <p class="eyebrow">Split purchase</p>
+          <h2 id="splitDialogTitle">Split transaction</h2>
+        </div>
+        <button type="button" class="icon-button" data-close="splitDialog" aria-label="Close">×</button>
+      </div>
+      <p class="split-help">Divide one purchase across two or more envelopes. The parts will stay grouped together in recent activity.</p>
+      <div id="splitRows" class="split-rows"></div>
+      <button type="button" id="addSplitRowBtn" class="secondary split-add">+ Add another envelope</button>
+      <label>Note <span class="optional">optional</span>
+        <input id="splitNote" type="text" maxlength="80" placeholder="Walmart, Sam's Club, Target..." />
+      </label>
+      <div class="split-total-row">
+        <span>Total purchase</span>
+        <strong id="splitTotal">$0.00</strong>
+      </div>
+      <div id="splitError" class="form-error" role="alert" aria-live="polite"></div>
+      <div class="dialog-actions split-actions">
+        <button type="button" id="deleteSplitBtn" class="danger hidden">Delete split</button>
+        <span class="spacer"></span>
+        <button type="button" class="secondary" data-close="splitDialog">Cancel</button>
+        <button type="submit" class="primary">Save split</button>
       </div>
     </form>
   </dialog>

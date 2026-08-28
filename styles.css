@@ -109,3 +109,20 @@ input, select { width: 100%; min-height: 46px; border-radius: 12px; border: 1px 
   .history-item .history-edit { grid-column: 1 / -1; justify-self: start; }
   .form-grid { grid-template-columns: 82px 1fr; }
 }
+
+.split-help { color: var(--muted); font-size: 0.88rem; line-height: 1.45; }
+.split-rows { display: grid; gap: 10px; }
+.split-row { display: grid; grid-template-columns: minmax(0, 1fr) 120px 44px; gap: 8px; align-items: end; }
+.split-row .remove-split { min-height: 46px; width: 44px; padding: 0; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--muted); font-size: 1.25rem; }
+.split-row .remove-split:disabled { opacity: 0.35; cursor: default; }
+.split-add { justify-self: start; }
+.split-total-row { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; padding: 12px; border-radius: 12px; background: var(--surface-2); }
+.split-total-row span { color: var(--muted); }
+.split-total-row strong { font-size: 1.25rem; }
+.form-error { min-height: 1.1em; color: var(--danger); font-size: 0.84rem; }
+.split-breakdown { color: var(--muted); font-size: 0.83rem; margin-top: 4px; line-height: 1.45; }
+.split-badge { display: inline-block; margin-left: 6px; padding: 2px 6px; border-radius: 999px; background: var(--accent-2); color: var(--accent); font-size: 0.72rem; font-weight: 700; vertical-align: 1px; }
+
+@media (max-width: 520px) {
+  .split-row { grid-template-columns: minmax(0, 1fr) 104px 44px; }
+}
