@@ -1,10 +1,13 @@
 const STORAGE_KEY = 'envelope-budget-pwa-v1';
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
-const CYCLE_DAYS = 14;
+const DEFAULT_CYCLE_TYPE = 'biweekly';
+const DEFAULT_CYCLE_DAYS = 14;
 
 const defaultState = {
-  schemaVersion: 2,
-  cycleDays: CYCLE_DAYS,
+  schemaVersion: 3,
+  cycleType: DEFAULT_CYCLE_TYPE,
+  customCycleDays: DEFAULT_CYCLE_DAYS,
+  monthlyAnchorDay: null,
   nextCycleDate: '',
   currentCycleStartedAt: null,
   lastCycleDate: '',
@@ -78,6 +81,9 @@ const els = {
   reviewCycleBtn: document.querySelector('#reviewCycleBtn'),
   cycleDateInput: document.querySelector('#cycleDateInput'),
   saveCycleDateBtn: document.querySelector('#saveCycleDateBtn'),
+  cycleTypeSelect: document.querySelector('#cycleTypeSelect'),
+  customCycleDaysWrap: document.querySelector('#customCycleDaysWrap'),
+  customCycleDaysInput: document.querySelector('#customCycleDaysInput'),
   cycleDialog: document.querySelector('#cycleDialog'),
   cycleForm: document.querySelector('#cycleForm'),
   cycleDialogTitle: document.querySelector('#cycleDialogTitle'),
@@ -107,6 +113,45 @@ function addDaysToDateKey(key, days) {
   return localDateKey(date);
 }
 
+function addMonthsToDateKey(key, months, anchorDay = null) {
+  const date = parseLocalDate(key);
+  if (!date) return '';
+  const targetYear = date.getFullYear();
+  const targetMonth = date.getMonth() + months;
+  const preferredDay = Number(anchorDay) || date.getDate();
+  const lastDay = new Date(targetYear, targetMonth + 1, 0, 12).getDate();
+  const next = new Date(targetYear, targetMonth, Math.min(preferredDay, lastDay), 12);
+  return localDateKey(next);
+}
+
+function cycleTypeLabel(type = state?.cycleType) {
+  return ({
+    weekly: 'Weekly',
+    biweekly: 'Every 2 weeks',
+    monthly: 'Monthly',
+    custom: 'Custom interval'
+  })[type] || 'Every 2 weeks';
+}
+
+function cycleDescription() {
+  if (state.cycleType === 'weekly') return 'every 7 days';
+  if (state.cycleType === 'monthly') return 'monthly';
+  if (state.cycleType === 'custom') return `every ${Math.max(1, Number(state.customCycleDays || DEFAULT_CYCLE_DAYS))} days`;
+  return 'every 14 days';
+}
+
+function nextCycleDateAfter(key) {
+  if (state.cycleType === 'monthly') {
+    return addMonthsToDateKey(key, 1, state.monthlyAnchorDay);
+  }
+  const days = state.cycleType === 'weekly'
+    ? 7
+    : state.cycleType === 'custom'
+      ? Math.max(1, Number(state.customCycleDays || DEFAULT_CYCLE_DAYS))
+      : 14;
+  return addDaysToDateKey(key, days);
+}
+
 function formatDateKey(key) {
   const date = parseLocalDate(key);
   return date ? date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Not set';
@@ -118,8 +163,14 @@ function migrateState(parsed) {
   }
 
   const migrated = parsed;
-  migrated.schemaVersion = 2;
-  migrated.cycleDays = CYCLE_DAYS;
+  migrated.schemaVersion = 3;
+  migrated.cycleType = ['weekly', 'biweekly', 'monthly', 'custom'].includes(migrated.cycleType) ? migrated.cycleType : DEFAULT_CYCLE_TYPE;
+  migrated.customCycleDays = Number.isFinite(Number(migrated.customCycleDays)) && Number(migrated.customCycleDays) >= 1
+    ? Math.round(Number(migrated.customCycleDays))
+    : (Number.isFinite(Number(migrated.cycleDays)) && Number(migrated.cycleDays) >= 1 ? Math.round(Number(migrated.cycleDays)) : DEFAULT_CYCLE_DAYS);
+  migrated.monthlyAnchorDay = Number.isInteger(Number(migrated.monthlyAnchorDay)) && Number(migrated.monthlyAnchorDay) >= 1 && Number(migrated.monthlyAnchorDay) <= 31
+    ? Number(migrated.monthlyAnchorDay)
+    : null;
   migrated.nextCycleDate = typeof migrated.nextCycleDate === 'string' ? migrated.nextCycleDate : '';
   migrated.currentCycleStartedAt = Number.isFinite(Number(migrated.currentCycleStartedAt)) ? Number(migrated.currentCycleStartedAt) : null;
   migrated.lastCycleDate = typeof migrated.lastCycleDate === 'string' ? migrated.lastCycleDate : '';
@@ -243,11 +294,14 @@ function renderCyclePanel() {
   const total = plannedCycleFunding();
   els.cycleFundingTotal.textContent = money.format(total);
   els.cycleDateInput.value = state.nextCycleDate || '';
+  els.cycleTypeSelect.value = state.cycleType || DEFAULT_CYCLE_TYPE;
+  els.customCycleDaysInput.value = state.customCycleDays || DEFAULT_CYCLE_DAYS;
+  els.customCycleDaysWrap.classList.toggle('hidden', els.cycleTypeSelect.value !== 'custom');
 
   if (!state.nextCycleDate) {
     els.cyclePanel.classList.remove('cycle-ready');
     els.cycleStatusTitle.textContent = 'Set your next budget cycle';
-    els.cycleStatusText.textContent = 'Choose the next payday that starts your 14-day budget cycle. The app will calculate future cycles from there.';
+    els.cycleStatusText.textContent = `Choose the schedule and next date for your ${cycleTypeLabel().toLowerCase()} budget cycle.`;
     els.reviewCycleBtn.textContent = 'Review cycle funding';
     els.reviewCycleBtn.disabled = true;
     return;
@@ -258,7 +312,7 @@ function renderCyclePanel() {
   els.cycleStatusTitle.textContent = due ? 'New Budget Cycle Ready' : `Next Budget Cycle: ${formatDateKey(state.nextCycleDate)}`;
   els.cycleStatusText.textContent = due
     ? `Funding is ready for ${formatDateKey(state.nextCycleDate)}. Nothing changes until you review and confirm.`
-    : `Your next 14-day cycle begins ${formatDateKey(state.nextCycleDate)}. You can review it early if needed.`;
+    : `Your next ${cycleTypeLabel().toLowerCase()} cycle begins ${formatDateKey(state.nextCycleDate)} and repeats ${cycleDescription()}. You can review it early if needed.`;
   els.reviewCycleBtn.textContent = due ? 'Review & start cycle' : 'Review cycle funding';
   els.reviewCycleBtn.disabled = false;
 }
@@ -696,15 +750,29 @@ function updateCycleDialogTotal() {
 
 els.reviewCycleBtn.addEventListener('click', openCycleDialog);
 
+els.cycleTypeSelect.addEventListener('change', () => {
+  els.customCycleDaysWrap.classList.toggle('hidden', els.cycleTypeSelect.value !== 'custom');
+});
+
 els.saveCycleDateBtn.addEventListener('click', () => {
   const key = els.cycleDateInput.value;
+  const cycleType = els.cycleTypeSelect.value;
+  const customDays = Math.round(Number(els.customCycleDaysInput.value));
   if (!parseLocalDate(key)) {
     alert('Choose a valid next budget cycle date.');
     return;
   }
+  if (!['weekly', 'biweekly', 'monthly', 'custom'].includes(cycleType)) return;
+  if (cycleType === 'custom' && (!Number.isFinite(customDays) || customDays < 1 || customDays > 365)) {
+    alert('Custom cycle length must be between 1 and 365 days.');
+    return;
+  }
+  state.cycleType = cycleType;
+  state.customCycleDays = cycleType === 'custom' ? customDays : (state.customCycleDays || DEFAULT_CYCLE_DAYS);
   state.nextCycleDate = key;
+  state.monthlyAnchorDay = cycleType === 'monthly' ? parseLocalDate(key).getDate() : state.monthlyAnchorDay;
   saveState();
-  toast('Budget cycle date saved');
+  toast('Budget cycle settings saved');
   render();
 });
 
@@ -731,7 +799,7 @@ els.cycleForm.addEventListener('submit', (event) => {
   });
 
   state.lastCycleDate = cycleDate;
-  state.nextCycleDate = addDaysToDateKey(cycleDate, state.cycleDays || CYCLE_DAYS);
+  state.nextCycleDate = nextCycleDateAfter(cycleDate);
   saveState();
   els.cycleDialog.close();
   toast('New budget cycle started');

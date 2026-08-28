@@ -1,4 +1,4 @@
-const CACHE_NAME = 'envelope-budget-v4';
+const CACHE_NAME = 'envelope-budget-v5';
 const ASSETS = [
   './',
   './index.html',

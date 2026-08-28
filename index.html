@@ -44,7 +44,7 @@
       <section id="cyclePanel" class="panel cycle-panel">
         <div class="cycle-status">
           <div>
-            <p class="eyebrow">14-day budget cycle</p>
+            <p class="eyebrow">Budget cycle</p>
             <h2 id="cycleStatusTitle">Set your next budget cycle</h2>
             <p id="cycleStatusText">Choose your next cycle date to get started.</p>
           </div>
@@ -53,14 +53,25 @@
             <strong id="cycleFundingTotal">$0.00</strong>
           </div>
         </div>
-        <div class="cycle-controls">
+        <div class="cycle-controls cycle-controls-schedule">
+          <label>Cycle schedule
+            <select id="cycleTypeSelect">
+              <option value="weekly">Weekly</option>
+              <option value="biweekly">Every 2 weeks (14 days)</option>
+              <option value="monthly">Monthly</option>
+              <option value="custom">Custom number of days</option>
+            </select>
+          </label>
+          <label id="customCycleDaysWrap" class="hidden">Days per cycle
+            <input id="customCycleDaysInput" type="number" inputmode="numeric" min="1" max="365" step="1" value="14" />
+          </label>
           <label>Next budget cycle date
             <input id="cycleDateInput" type="date" />
           </label>
-          <button id="saveCycleDateBtn" type="button" class="secondary">Save date</button>
+          <button id="saveCycleDateBtn" type="button" class="secondary">Save cycle settings</button>
           <button id="reviewCycleBtn" type="button" class="primary">Review cycle funding</button>
         </div>
-        <p class="fine-print">Nothing is funded automatically. When the cycle date arrives, review the amounts and confirm before any money is added. Leftover balances always carry forward.</p>
+        <p class="fine-print">Choose the schedule that fits your household. Nothing is funded automatically: when a cycle date arrives, review the amounts and confirm before money is added. Leftover balances always carry forward.</p>
       </section>
 
       <section class="section-header">
@@ -196,7 +207,7 @@
       <label class="switch-row">
         <span>
           <strong>Fund every budget cycle</strong>
-          <small>Include this envelope when you confirm a new 14-day cycle. Turn off for manual-only funding.</small>
+          <small>Include this envelope whenever you confirm a new budget cycle. Turn off for manual-only funding.</small>
         </span>
         <input id="envelopeFundEveryCycle" type="checkbox" />
       </label>

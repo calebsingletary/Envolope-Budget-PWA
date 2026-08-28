@@ -1,11 +1,12 @@
 # Envelope Budget PWA
 
-A small offline-first digital envelope budget app designed around a 14-day household budget cycle.
+A small offline-first digital envelope budget app designed around a configurable household budget cycle.
 
 ## Budget-cycle model
 
-- Set the date of the next budget cycle (typically a household payday).
-- The app calculates future cycles every 14 days.
+- Choose a cycle schedule: weekly, every 2 weeks (14 days), monthly, or a custom number of days.
+- Set the date of the next budget cycle (often a household payday).
+- The app calculates future cycle dates using the selected schedule.
 - Nothing is funded automatically. When the date arrives, the app shows **New Budget Cycle Ready** and requires confirmation.
 - Each envelope has a normal funding amount per cycle and can be included in cycle funding or set to manual-only.
 - Before confirming a cycle, funding amounts can be adjusted for that cycle without changing the normal defaults.
