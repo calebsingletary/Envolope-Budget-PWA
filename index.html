@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=7" />
+  <link rel="stylesheet" href="styles.css?v=8" />
   <title>Envelope Budget</title>
 </head>
 <body>
@@ -139,6 +139,30 @@
     </form>
   </dialog>
 
+  <dialog id="editCycleDialog">
+    <form method="dialog" id="editCycleForm" class="dialog-card">
+      <div class="dialog-title-row">
+        <div>
+          <p class="eyebrow">Budget cycle funding</p>
+          <h2 id="editCycleDialogTitle">Edit funding</h2>
+        </div>
+        <button type="button" class="icon-button" data-close="editCycleDialog" aria-label="Close">×</button>
+      </div>
+      <p id="editCycleDialogText" class="split-help"></p>
+      <div id="editCycleFundingRows" class="cycle-funding-rows"></div>
+      <div class="split-total-row cycle-dialog-total">
+        <span>Updated cycle funding</span>
+        <strong id="editCycleDialogTotal">$0.00</strong>
+      </div>
+      <p class="fine-print">Editing this funding event changes envelope balances and history for this cycle only. It does not change normal future funding amounts.</p>
+      <div class="dialog-actions split-actions">
+        <span class="spacer"></span>
+        <button type="button" class="secondary" data-close="editCycleDialog">Cancel</button>
+        <button type="submit" class="primary">Save funding changes</button>
+      </div>
+    </form>
+  </dialog>
+
   <dialog id="spendDialog">
     <form method="dialog" id="spendForm" class="dialog-card">
       <div class="dialog-title-row">
@@ -157,8 +181,43 @@
       <div class="dialog-actions">
         <button type="button" id="editEnvelopeFromSpend" class="secondary">Edit envelope</button>
         <button type="button" id="openSplitFromSpend" class="secondary">Split transaction</button>
+        <button type="button" id="moveMoneyBtn" class="secondary">Move money</button>
         <button type="button" id="addMoneyBtn" class="secondary add-money">+ Add money</button>
         <button type="submit" class="primary">Save spending</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="transferDialog">
+    <form method="dialog" id="transferForm" class="dialog-card">
+      <div class="dialog-title-row">
+        <div>
+          <p class="eyebrow">Envelope transfer</p>
+          <h2 id="transferDialogTitle">Move money</h2>
+        </div>
+        <button type="button" class="icon-button" data-close="transferDialog" aria-label="Close">×</button>
+      </div>
+      <p class="split-help">Reassign money between envelopes without counting it as spending or new funding.</p>
+      <div class="form-grid">
+        <label>From envelope
+          <select id="transferFrom"></select>
+          <small id="transferFromBalance" class="field-hint"></small>
+        </label>
+        <label>To envelope
+          <select id="transferTo"></select>
+        </label>
+      </div>
+      <label>Amount
+        <input id="transferAmount" type="number" inputmode="decimal" min="0.01" step="0.01" placeholder="0.00" required />
+      </label>
+      <label>Note <span class="optional">optional</span>
+        <input id="transferNote" type="text" maxlength="80" placeholder="Date night, extra groceries..." />
+      </label>
+      <div class="dialog-actions split-actions">
+        <button type="button" id="deleteTransferBtn" class="danger hidden">Delete transfer</button>
+        <span class="spacer"></span>
+        <button type="button" class="secondary" data-close="transferDialog">Cancel</button>
+        <button type="submit" class="primary">Move money</button>
       </div>
     </form>
   </dialog>
@@ -262,6 +321,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=7"></script>
+  <script src="app.js?v=8"></script>
 </body>
 </html>

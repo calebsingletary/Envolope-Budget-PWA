@@ -183,3 +183,7 @@ button:disabled { opacity: 0.5; cursor: default; }
   .cycle-panel.collapsed .cycle-toggle { padding-inline: 9px; }
   .cycle-panel.collapsed #cycleToggleLabel { display: none; }
 }
+
+.transfer-badge { display: inline-block; margin-left: 5px; padding: 2px 7px; border-radius: 999px; border: 1px solid var(--border); color: var(--muted); font-size: .72rem; font-weight: 700; vertical-align: 1px; }
+.transfer-amount { color: var(--muted); }
+.field-hint { display: block; margin-top: 5px; color: var(--muted); font-weight: 500; }

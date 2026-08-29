@@ -19,15 +19,16 @@ A small offline-first digital envelope budget app designed around a configurable
 - Envelope cards with current available balances
 - Spending and manual money additions
 - Split transactions across multiple envelopes
-- Budget-cycle funding history
+- Budget-cycle funding history with editable per-envelope funding amounts
+- Move money between envelopes without counting the transfer as spending or new funding
 - Add, edit, and delete envelopes
-- Edit and delete normal transactions
+- Edit and delete normal transactions and envelope transfers
 - JSON backup and restore
 - Offline support and installable PWA manifest
 - Local-only storage in the browser
 
 ## Updating an existing installation
 
-This version keeps the existing `envelope-budget-pwa-v1` local-storage key and migrates older envelope data automatically. Existing monthly budget amounts are preserved as current starting balances, and their per-cycle funding defaults are initialized to half of the old monthly amount.
+This version (v8) keeps the existing `envelope-budget-pwa-v1` local-storage key and migrates older envelope data automatically. Existing monthly budget amounts are preserved as current starting balances, and their per-cycle funding defaults are initialized to half of the old monthly amount.
 
 After replacing the files on GitHub Pages, close and reopen the installed app so the new service worker can take control. Do not clear browser/site data unless you intentionally want to erase local budget data; exporting a backup first is recommended.
