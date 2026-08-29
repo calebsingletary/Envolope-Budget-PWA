@@ -159,3 +159,27 @@ button:disabled { opacity: 0.5; cursor: default; }
 @media (max-width: 420px) {
   .cycle-funding-row { grid-template-columns: minmax(0, 1fr) 110px; }
 }
+
+
+/* Collapsible budget-cycle panel */
+.cycle-panel-header { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: start; }
+.cycle-panel-header .cycle-status { min-width: 0; }
+.cycle-panel-body { display: grid; gap: 10px; }
+.cycle-toggle { min-height: 40px; border: 1px solid var(--border); border-radius: 12px; background: var(--surface); color: var(--text); padding: 8px 10px; display: inline-flex; align-items: center; gap: 7px; font-weight: 700; white-space: nowrap; }
+.cycle-toggle-icon { font-size: 1.05rem; line-height: 1; }
+.cycle-panel.collapsed { gap: 0; padding-block: 12px; }
+.cycle-panel.collapsed .cycle-panel-body { display: none; }
+.cycle-panel.collapsed .cycle-status p:not(.eyebrow) { display: none; }
+.cycle-panel.collapsed .cycle-status { align-items: center; }
+.cycle-panel.collapsed .cycle-total strong { font-size: 1.1rem; }
+.cycle-panel.collapsed .cycle-panel-header { align-items: center; }
+
+@media (max-width: 640px) {
+  .cycle-panel-header { grid-template-columns: 1fr auto; }
+  .cycle-panel-header .cycle-status { display: grid; gap: 6px; }
+  .cycle-panel.collapsed .cycle-status { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+  .cycle-panel.collapsed .cycle-total { text-align: right; }
+  .cycle-panel.collapsed .cycle-total span { display: none; }
+  .cycle-panel.collapsed .cycle-toggle { padding-inline: 9px; }
+  .cycle-panel.collapsed #cycleToggleLabel { display: none; }
+}

@@ -8,7 +8,7 @@
   <link rel="manifest" href="manifest.json" />
   <link rel="icon" href="icon-192.png" />
   <link rel="apple-touch-icon" href="icon-192.png" />
-  <link rel="stylesheet" href="styles.css?v=6" />
+  <link rel="stylesheet" href="styles.css?v=7" />
   <title>Envelope Budget</title>
 </head>
 <body>
@@ -42,36 +42,44 @@
       </section>
 
       <section id="cyclePanel" class="panel cycle-panel">
-        <div class="cycle-status">
-          <div>
-            <p class="eyebrow">Budget cycle</p>
-            <h2 id="cycleStatusTitle">Set your next budget cycle</h2>
-            <p id="cycleStatusText">Choose your next cycle date to get started.</p>
+        <div class="cycle-panel-header">
+          <div class="cycle-status">
+            <div>
+              <p class="eyebrow">Budget cycle</p>
+              <h2 id="cycleStatusTitle">Set your next budget cycle</h2>
+              <p id="cycleStatusText">Choose your next cycle date to get started.</p>
+            </div>
+            <div class="cycle-total">
+              <span>Normal cycle funding</span>
+              <strong id="cycleFundingTotal">$0.00</strong>
+            </div>
           </div>
-          <div class="cycle-total">
-            <span>Normal cycle funding</span>
-            <strong id="cycleFundingTotal">$0.00</strong>
+          <button id="toggleCyclePanelBtn" type="button" class="cycle-toggle" aria-expanded="true" aria-controls="cyclePanelBody">
+            <span id="cycleToggleLabel">Minimize</span>
+            <span class="cycle-toggle-icon" aria-hidden="true">⌃</span>
+          </button>
+        </div>
+        <div id="cyclePanelBody" class="cycle-panel-body">
+          <div class="cycle-controls cycle-controls-schedule">
+            <label>Cycle schedule
+              <select id="cycleTypeSelect">
+                <option value="weekly">Weekly</option>
+                <option value="biweekly">Every 2 weeks (14 days)</option>
+                <option value="monthly">Monthly</option>
+                <option value="custom">Custom number of days</option>
+              </select>
+            </label>
+            <label id="customCycleDaysWrap" class="hidden">Days per cycle
+              <input id="customCycleDaysInput" type="number" inputmode="numeric" min="1" max="365" step="1" value="14" />
+            </label>
+            <label>Next budget cycle date
+              <input id="cycleDateInput" type="date" />
+            </label>
+            <button id="saveCycleDateBtn" type="button" class="secondary">Save cycle settings</button>
+            <button id="reviewCycleBtn" type="button" class="primary">Review cycle funding</button>
           </div>
+          <p class="fine-print">Choose the schedule that fits your household. Nothing is funded automatically: when a cycle date arrives, review the amounts and confirm before money is added. Leftover balances always carry forward.</p>
         </div>
-        <div class="cycle-controls cycle-controls-schedule">
-          <label>Cycle schedule
-            <select id="cycleTypeSelect">
-              <option value="weekly">Weekly</option>
-              <option value="biweekly">Every 2 weeks (14 days)</option>
-              <option value="monthly">Monthly</option>
-              <option value="custom">Custom number of days</option>
-            </select>
-          </label>
-          <label id="customCycleDaysWrap" class="hidden">Days per cycle
-            <input id="customCycleDaysInput" type="number" inputmode="numeric" min="1" max="365" step="1" value="14" />
-          </label>
-          <label>Next budget cycle date
-            <input id="cycleDateInput" type="date" />
-          </label>
-          <button id="saveCycleDateBtn" type="button" class="secondary">Save cycle settings</button>
-          <button id="reviewCycleBtn" type="button" class="primary">Review cycle funding</button>
-        </div>
-        <p class="fine-print">Choose the schedule that fits your household. Nothing is funded automatically: when a cycle date arrives, review the amounts and confirm before money is added. Leftover balances always carry forward.</p>
       </section>
 
       <section class="section-header">
@@ -254,6 +262,6 @@
   </dialog>
 
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
-  <script src="app.js?v=6"></script>
+  <script src="app.js?v=7"></script>
 </body>
 </html>

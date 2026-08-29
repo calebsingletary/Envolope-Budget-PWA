@@ -2,6 +2,7 @@ const STORAGE_KEY = 'envelope-budget-pwa-v1';
 const money = new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' });
 const DEFAULT_CYCLE_TYPE = 'biweekly';
 const DEFAULT_CYCLE_DAYS = 14;
+const CYCLE_PANEL_COLLAPSED_KEY = 'envelope-budget-pwa-cycle-panel-collapsed';
 
 const defaultState = {
   schemaVersion: 3,
@@ -75,6 +76,9 @@ const els = {
   installBtn: document.querySelector('#installBtn'),
   toast: document.querySelector('#toast'),
   cyclePanel: document.querySelector('#cyclePanel'),
+  cyclePanelBody: document.querySelector('#cyclePanelBody'),
+  toggleCyclePanelBtn: document.querySelector('#toggleCyclePanelBtn'),
+  cycleToggleLabel: document.querySelector('#cycleToggleLabel'),
   cycleStatusTitle: document.querySelector('#cycleStatusTitle'),
   cycleStatusText: document.querySelector('#cycleStatusText'),
   cycleFundingTotal: document.querySelector('#cycleFundingTotal'),
@@ -290,7 +294,21 @@ function render() {
   renderTransactionEnvelopeOptions();
 }
 
+
+function isCyclePanelCollapsed() {
+  return localStorage.getItem(CYCLE_PANEL_COLLAPSED_KEY) === '1';
+}
+
+function setCyclePanelCollapsed(collapsed) {
+  els.cyclePanel.classList.toggle('collapsed', collapsed);
+  els.toggleCyclePanelBtn.setAttribute('aria-expanded', String(!collapsed));
+  els.cycleToggleLabel.textContent = collapsed ? 'Expand' : 'Minimize';
+  els.toggleCyclePanelBtn.querySelector('.cycle-toggle-icon').textContent = collapsed ? '⌄' : '⌃';
+  localStorage.setItem(CYCLE_PANEL_COLLAPSED_KEY, collapsed ? '1' : '0');
+}
+
 function renderCyclePanel() {
+  setCyclePanelCollapsed(isCyclePanelCollapsed());
   const total = plannedCycleFunding();
   els.cycleFundingTotal.textContent = money.format(total);
   els.cycleDateInput.value = state.nextCycleDate || '';
@@ -749,6 +767,10 @@ function updateCycleDialogTotal() {
 }
 
 els.reviewCycleBtn.addEventListener('click', openCycleDialog);
+
+els.toggleCyclePanelBtn.addEventListener('click', () => {
+  setCyclePanelCollapsed(!els.cyclePanel.classList.contains('collapsed'));
+});
 
 els.cycleTypeSelect.addEventListener('change', () => {
   els.customCycleDaysWrap.classList.toggle('hidden', els.cycleTypeSelect.value !== 'custom');

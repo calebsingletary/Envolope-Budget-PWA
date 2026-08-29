@@ -14,6 +14,8 @@ A small offline-first digital envelope budget app designed around a configurable
 
 ## Included features
 
+- Collapsible Budget Cycle panel that remembers whether you left it minimized or expanded
+
 - Envelope cards with current available balances
 - Spending and manual money additions
 - Split transactions across multiple envelopes
